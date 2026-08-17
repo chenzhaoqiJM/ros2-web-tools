@@ -16,6 +16,7 @@ from pathlib import Path
 
 import rclpy
 from nav_msgs.msg import OccupancyGrid
+from geometry_msgs.msg import Twist
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import LaserScan
@@ -101,9 +102,10 @@ class SharedState:
 
 
 class SlamNode(Node):
-    def __init__(self, state, map_topic, scan_topic, trajectory_topic):
+    def __init__(self, state, map_topic, scan_topic, trajectory_topic, cmd_vel_topic):
         super().__init__("slam_web")
         self.state = state
+        self.cmd_vel_publisher = self.create_publisher(Twist, cmd_vel_topic, 10)
         dynamic_qos = QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=100,
                                  reliability=ReliabilityPolicy.BEST_EFFORT,
                                  durability=DurabilityPolicy.VOLATILE)
@@ -118,11 +120,27 @@ class SlamNode(Node):
         self.create_subscription(OccupancyGrid, map_topic, state.update_map, map_qos)
         self.create_subscription(LaserScan, scan_topic, state.update_scan, dynamic_qos)
         self.create_subscription(MarkerArray, trajectory_topic, state.update_markers, dynamic_qos)
+        self.last_cmd_time = 0.0
+        self.create_timer(0.1, self.stop_if_stale)
+        self.cmd_vel_topic = cmd_vel_topic
         self.get_logger().info(f"Listening to {map_topic}, {scan_topic}, TF and {trajectory_topic}")
+
+    def publish_cmd_vel(self, linear_x, angular_z):
+        message = Twist()
+        message.linear.x = linear_x
+        message.angular.z = angular_z
+        self.cmd_vel_publisher.publish(message)
+        self.last_cmd_time = time.monotonic()
+
+    def stop_if_stale(self):
+        if self.last_cmd_time and time.monotonic() - self.last_cmd_time > 0.5:
+            self.publish_cmd_vel(0.0, 0.0)
+            self.last_cmd_time = 0.0
 
 
 class Handler(BaseHTTPRequestHandler):
     state = None
+    node = None
     domain_id = "0"
 
     def log_message(self, fmt, *args):
@@ -148,6 +166,25 @@ class Handler(BaseHTTPRequestHandler):
             body = body.decode().replace("{{ROS_DOMAIN_ID}}", html.escape(self.domain_id)).encode()
         content_type = {".html": "text/html", ".js": "text/javascript", ".css": "text/css"}[Path(files[path]).suffix]
         self.send_bytes(body, content_type + "; charset=utf-8")
+
+    def do_POST(self):
+        if self.path.split("?", 1)[0] != "/api/cmd_vel":
+            self.send_error(404)
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length))
+            linear_x = float(payload.get("linear_x", 0.0))
+            angular_z = float(payload.get("angular_z", 0.0))
+            if not math.isfinite(linear_x) or not math.isfinite(angular_z):
+                raise ValueError("velocity must be finite")
+            linear_x = max(-self.max_linear_speed, min(self.max_linear_speed, linear_x))
+            angular_z = max(-self.max_angular_speed, min(self.max_angular_speed, angular_z))
+            self.node.publish_cmd_vel(linear_x, angular_z)
+            body = json.dumps({"linear_x": linear_x, "angular_z": angular_z}).encode()
+            self.send_bytes(body, "application/json; charset=utf-8")
+        except (ValueError, TypeError, json.JSONDecodeError) as error:
+            self.send_error(400, str(error))
 
     def send_bytes(self, body, content_type):
         self.send_response(200)
@@ -198,11 +235,17 @@ def main():
     parser.add_argument("--map-topic", default="/map")
     parser.add_argument("--scan-topic", default="/scan")
     parser.add_argument("--trajectory-topic", default="/trajectory_node_list")
+    parser.add_argument("--cmd-vel-topic", default="/cmd_vel")
+    parser.add_argument("--max-linear-speed", type=float, default=0.5)
+    parser.add_argument("--max-angular-speed", type=float, default=1.5)
     args = parser.parse_args()
     rclpy.init()
     state = SharedState()
-    node = SlamNode(state, args.map_topic, args.scan_topic, args.trajectory_topic)
+    node = SlamNode(state, args.map_topic, args.scan_topic, args.trajectory_topic, args.cmd_vel_topic)
     Handler.state = state
+    Handler.node = node
+    Handler.max_linear_speed = max(0.0, args.max_linear_speed)
+    Handler.max_angular_speed = max(0.0, args.max_angular_speed)
     Handler.domain_id = os.environ.get("ROS_DOMAIN_ID", "0")
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)

@@ -10,6 +10,7 @@
 | LaserScan | `/scan` | 红色实时激光点云 |
 | TF / RobotModel | `/tf`、`/tf_static` | 机器人位置和朝向 |
 | MarkerArray | `/trajectory_node_list` | 紫色建图轨迹 |
+| Twist | `/cmd_vel` | 网页速度控制 |
 
 固定坐标系与 RViz 配置一致，使用地图消息的 frame（通常为 `map`）。
 
@@ -35,8 +36,19 @@ http://<远程主机IP>:8766
 python3 slam_web.py --port 9000 \
   --map-topic /map \
   --scan-topic /scan \
-  --trajectory-topic /trajectory_node_list
+  --trajectory-topic /trajectory_node_list \
+  --cmd-vel-topic /cmd_vel
 ```
+
+默认速度限制为线速度 `0.5 m/s`、角速度 `1.5 rad/s`，可以通过启动参数调整：
+
+```bash
+python3 slam_web.py --max-linear-speed 0.3 --max-angular-speed 1.0
+```
+
+网页右侧“速度控制”面板可以调整速度并按住方向按钮控制机器人，也支持键盘 `W/A/S/D`。
+按钮松开、键盘释放、浏览器标签页隐藏或连接失效后，服务端看门狗会在最多约 `0.5` 秒内发布零速度。
+网页控速只适用于确认 `/cmd_vel` 已连接到机器人底盘控制器的环境，测试前应先抬起驱动轮或准备物理急停。
 
 如果网页始终显示“等待”，先在运行服务的同一终端环境检查：
 
