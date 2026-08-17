@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ROS 2 TF 实时视图</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <div><span class="eyebrow">ROS 2 · DOMAIN 25</span><h1>TF 空间视图</h1></div>
+    <div class="connection"><i id="dot"></i><span id="status">正在连接</span></div>
+  </header>
+  <main>
+    <section class="stage">
+      <canvas id="scene" aria-label="TF 三维坐标视图"></canvas>
+      <div class="help">拖动旋转 · 滚轮缩放 · 双击复位</div>
+      <div class="legend"><span><b class="x"></b>X</span><span><b class="y"></b>Y</span><span><b class="z"></b>Z</span><span><b class="target"></b>目标位姿</span></div>
+    </section>
+    <aside>
+      <div class="summary">
+        <div><strong id="frames">0</strong><span>坐标系</span></div>
+        <div><strong id="roots">0</strong><span>根节点</span></div>
+      </div>
+      <section class="card target-card">
+        <div class="card-title"><h2>目标位姿</h2><span id="age">等待消息</span></div>
+        <code>/grasp_task/target_pose</code>
+        <dl id="pose"><dt>Frame</dt><dd>—</dd><dt>Position</dt><dd>—</dd><dt>Quaternion</dt><dd>—</dd></dl>
+      </section>
+      <section class="card plan-card">
+        <div class="card-title"><h2>MoveIt 规划</h2><span id="plan-state" class="state-badge">等待</span></div>
+        <div class="plan-stats"><div><strong id="plan-points">0</strong><span>轨迹点</span></div><div><strong id="plan-progress">—</strong><span>执行进度</span></div></div>
+        <p>/grasp_task/planned_path</p>
+      </section>
+      <section class="card tree-card">
+        <div class="card-title"><h2>TF 树</h2><button id="fit">适配视图</button></div>
+        <div id="tree" class="tree"><p class="empty">等待 /tf 或 /tf_static</p></div>
+      </section>
+    </aside>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

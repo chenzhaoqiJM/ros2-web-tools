@@ -1,0 +1,37 @@
+# Python cache and tooling
+__pycache__/
+*.py[cod]
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments and local environment files
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# IDE and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Runtime outputs and generated debug artifacts
+outputs/
+result_*.jpg
+result_*.png
+*.log
+
+# Generated prompt features, except the bundled default example
+*_text_feature.npy
+!box_text_feature.npy
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
