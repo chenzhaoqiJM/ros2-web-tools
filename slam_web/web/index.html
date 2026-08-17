@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ROS 2 SLAM 实时地图</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <div class="identity"><span>ROS 2 · DOMAIN {{ROS_DOMAIN_ID}}</span><h1>SLAM 实时地图</h1></div>
+    <div id="connection" class="connection"><i></i><span>正在连接</span></div>
+  </header>
+  <main>
+    <section class="viewport">
+      <canvas id="map" aria-label="SLAM 地图视图"></canvas>
+      <nav class="tools" aria-label="地图工具">
+        <button id="zoom-in" title="放大" aria-label="放大">+</button>
+        <button id="zoom-out" title="缩小" aria-label="缩小">−</button>
+        <button id="fit" title="适配地图" aria-label="适配地图">⌖</button>
+        <button id="follow" class="active" title="跟随机器人" aria-label="跟随机器人">◎</button>
+      </nav>
+      <div class="scale"><span id="scale-bar"></span><b id="scale-label">1 m</b></div>
+      <div class="legend"><span><i class="robot"></i>机器人</span><span><i class="laser"></i>激光</span><span><i class="trajectory"></i>轨迹</span></div>
+    </section>
+    <aside>
+      <section class="metrics">
+        <div><strong id="map-size">—</strong><span>地图尺寸</span></div>
+        <div><strong id="resolution">—</strong><span>分辨率</span></div>
+      </section>
+      <section class="panel">
+        <h2>机器人状态</h2>
+        <dl><dt>Frame</dt><dd id="robot-frame">base_footprint</dd><dt>X</dt><dd id="robot-x">—</dd><dt>Y</dt><dd id="robot-y">—</dd><dt>Yaw</dt><dd id="robot-yaw">—</dd></dl>
+      </section>
+      <section class="panel topics">
+        <h2>数据流</h2>
+        <p><i id="map-dot"></i><code>/map</code><span id="map-state">等待</span></p>
+        <p><i id="scan-dot"></i><code>/scan</code><span id="scan-state">等待</span></p>
+        <p><i id="tf-dot"></i><code>/tf</code><span id="tf-state">等待</span></p>
+        <p><i id="trajectory-dot"></i><code>/trajectory_node_list</code><span id="trajectory-state">等待</span></p>
+      </section>
+      <section class="panel">
+        <h2>视图图层</h2>
+        <label><input id="show-map" type="checkbox" checked><span>栅格地图</span></label>
+        <label><input id="show-scan" type="checkbox" checked><span>实时激光点</span></label>
+        <label><input id="show-trajectory" type="checkbox" checked><span>建图轨迹</span></label>
+        <label><input id="show-grid" type="checkbox"><span>米制网格</span></label>
+      </section>
+    </aside>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
