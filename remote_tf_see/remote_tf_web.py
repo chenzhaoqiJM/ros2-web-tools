@@ -2,7 +2,9 @@
 """ROS 2 TF tree and PoseStamped browser visualizer (stdlib HTTP server)."""
 
 import argparse
+import html
 import json
+import os
 import socket
 import threading
 import time
@@ -138,6 +140,7 @@ class TfWebNode(Node):
 
 class WebHandler(BaseHTTPRequestHandler):
     state = None
+    domain_id = "0"
 
     def log_message(self, fmt, *args):
         print(f"[web] {self.client_address[0]} {fmt % args}")
@@ -159,6 +162,10 @@ class WebHandler(BaseHTTPRequestHandler):
         except OSError:
             self.send_error(500, "Web assets are missing")
             return
+        if path == "/":
+            body = body.decode("utf-8").replace(
+                "{{ROS_DOMAIN_ID}}", html.escape(self.domain_id)
+            ).encode("utf-8")
         self.send_bytes(body, content_type + "; charset=utf-8")
 
     def send_bytes(self, body, content_type):
@@ -220,6 +227,7 @@ def main():
     state = SharedState()
     node = TfWebNode(state, args.target_topic)
     WebHandler.state = state
+    WebHandler.domain_id = os.environ.get("ROS_DOMAIN_ID") or "0"
     server = ThreadingHTTPServer((args.host, args.port), WebHandler)
     thread = threading.Thread(target=server.serve_forever, name="http-server", daemon=True)
     thread.start()
