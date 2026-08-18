@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ROS 2 Nav2 导航地图</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header><div><span class="eyebrow">ROS 2 · DOMAIN {{ROS_DOMAIN_ID}} · FRAME {{FIXED_FRAME}}</span><h1>Nav2 导航地图</h1></div><div id="connection" class="connection"><i></i><span>正在连接</span></div></header>
+  <main>
+    <section class="stage"><canvas id="map" aria-label="Nav2 导航地图"></canvas><div class="tools"><button id="zoom-in" title="放大">+</button><button id="zoom-out" title="缩小">−</button><button id="fit" title="适配地图">⌖</button></div><div class="hint">左键拖动设定目标方向 · 右键取消目标</div><div class="scale"><span id="scale-bar"></span><b id="scale-label">1 m</b></div><div class="legend"><span><i class="robot"></i>机器人</span><span><i class="goal"></i>目标</span><span><i class="plan"></i>全局路径</span></div></section>
+    <aside><section class="metrics"><div><strong id="map-size">—</strong><span>地图尺寸</span></div><div><strong id="resolution">—</strong><span>分辨率</span></div></section>
+      <section class="panel target"><div class="panel-heading"><h2>导航目标</h2><span id="nav-status">等待目标</span></div><dl><dt>X</dt><dd id="goal-x">—</dd><dt>Y</dt><dd id="goal-y">—</dd><dt>Yaw</dt><dd id="goal-yaw">—</dd></dl><div class="actions"><button id="send-goal" class="primary" disabled>发送目标</button><button id="cancel-goal">取消目标</button></div></section>
+      <section class="panel"><h2>机器人状态</h2><dl><dt>Frame</dt><dd id="robot-frame">—</dd><dt>X</dt><dd id="robot-x">—</dd><dt>Y</dt><dd id="robot-y">—</dd><dt>Yaw</dt><dd id="robot-yaw">—</dd></dl></section>
+      <section class="panel streams"><h2>数据流</h2><p><i id="map-dot"></i><code>/map</code><span id="map-state">等待</span></p><p><i id="plan-dot"></i><code>/plan</code><span id="plan-state">等待</span></p><p><i id="tf-dot"></i><code>/tf</code><span id="tf-state">等待</span></p></section>
+      <section class="panel layers"><h2>视图图层</h2><label><input id="show-map" type="checkbox" checked>栅格地图</label><label><input id="show-global" type="checkbox" checked>全局代价地图</label><label><input id="show-local" type="checkbox" checked>局部代价地图</label><label><input id="show-plan" type="checkbox" checked>规划路径</label></section>
+    </aside>
+  </main><script src="/app.js"></script>
+</body>
+</html>
