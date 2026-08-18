@@ -7,15 +7,30 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body data-fixed-frame="{{FIXED_FRAME}}">
-  <header><div><span class="eyebrow">ROS 2 · DOMAIN {{ROS_DOMAIN_ID}} · FRAME {{FIXED_FRAME}}</span><h1>Nav2 导航地图</h1></div><div id="connection" class="connection"><i></i><span>正在连接</span></div></header>
+  <header>
+    <div><span class="eyebrow">ROS 2 · DOMAIN {{ROS_DOMAIN_ID}} · FRAME {{FIXED_FRAME}}</span><h1>Nav2 导航地图</h1></div>
+    <div id="connection" class="connection"><i></i><span>正在连接</span></div>
+  </header>
   <main>
-    <section class="stage"><canvas id="map" aria-label="Nav2 导航地图"></canvas><div class="tools"><button id="zoom-in" title="放大">+</button><button id="zoom-out" title="缩小">−</button><button id="fit" title="适配地图">⌖</button></div><div class="hint">左键拖动设定目标方向 · 右键取消目标</div><div class="scale"><span id="scale-bar"></span><b id="scale-label">1 m</b></div><div class="legend"><span><i class="robot"></i>机器人</span><span><i class="goal"></i>目标</span><span><i class="plan"></i>全局路径</span></div></section>
-    <aside><section class="metrics"><div><strong id="map-size">—</strong><span>地图尺寸</span></div><div><strong id="resolution">—</strong><span>分辨率</span></div></section>
+    <section class="stage">
+      <canvas id="map" aria-label="Nav2 导航地图"></canvas>
+      <div class="tools"><button id="zoom-in" title="放大">+</button><button id="zoom-out" title="缩小">−</button><button id="fit" title="适配地图">⌖</button></div>
+      <div class="hint">左键拖动设定目标方向 · 右键取消目标</div>
+      <div class="scale"><span id="scale-bar"></span><b id="scale-label">1 m</b></div>
+      <div class="legend"><span><i class="robot"></i>机器人</span><span><i class="goal"></i>目标</span><span><i class="global-plan"></i>全局路径</span><span><i class="local-plan"></i>局部轨迹</span><span><i class="particle"></i>AMCL</span><span><i class="obstacle"></i>障碍</span></div>
+    </section>
+    <aside>
+      <section class="metrics"><div><strong id="map-size">—</strong><span>地图尺寸</span></div><div><strong id="resolution">—</strong><span>分辨率</span></div></section>
       <section class="panel target"><div class="panel-heading"><h2>导航目标</h2><span id="nav-status">等待目标</span></div><dl><dt>X</dt><dd id="goal-x">—</dd><dt>Y</dt><dd id="goal-y">—</dd><dt>Yaw</dt><dd id="goal-yaw">—</dd></dl><div class="actions"><button id="send-goal" class="primary" disabled>发送目标</button><button id="cancel-goal">取消目标</button></div></section>
-      <section class="panel"><h2>机器人状态</h2><dl><dt>Frame</dt><dd id="robot-frame">—</dd><dt>X</dt><dd id="robot-x">—</dd><dt>Y</dt><dd id="robot-y">—</dd><dt>Yaw</dt><dd id="robot-yaw">—</dd></dl></section>
-      <section class="panel streams"><h2>数据流</h2><p><i id="map-dot"></i><code>/map</code><span id="map-state">等待</span></p><p><i id="plan-dot"></i><code>/plan</code><span id="plan-state">等待</span></p><p><i id="tf-dot"></i><code>/tf</code><span id="tf-state">等待</span></p></section>
-      <section class="panel layers"><h2>视图图层</h2><label><input id="show-map" type="checkbox" checked>栅格地图</label><label><input id="show-global" type="checkbox" checked>全局代价地图</label><label><input id="show-local" type="checkbox" checked>局部代价地图</label><label><input id="show-plan" type="checkbox" checked>规划路径</label></section>
+      <section class="panel navigation">
+        <div class="panel-heading"><h2>导航反馈</h2><span id="bt-status">IDLE</span></div>
+        <dl><dt>BT 阶段</dt><dd id="bt-stage">等待行为树</dd><dt>恢复行为</dt><dd id="recovery-behavior">—</dd><dt>剩余距离</dt><dd id="distance-remaining">—</dd><dt>预计时间</dt><dd id="eta">—</dd><dt>执行时间</dt><dd id="navigation-time">—</dd><dt>恢复次数</dt><dd id="recovery-count">0</dd><dt>重规划次数</dt><dd id="replan-count">0</dd></dl>
+      </section>
+      <section class="panel"><h2>机器人状态</h2><dl><dt>Frame</dt><dd id="robot-frame">—</dd><dt>X</dt><dd id="robot-x">—</dd><dt>Y</dt><dd id="robot-y">—</dd><dt>Yaw</dt><dd id="robot-yaw">—</dd><dt>定位 σ</dt><dd id="localization-sigma">—</dd></dl></section>
+      <section class="panel streams"><h2>数据流</h2><p><i id="map-dot"></i><code>/map</code><span id="map-state">等待</span></p><p><i id="plan-dot"></i><code>全局 / 局部路径</code><span id="plan-state">等待</span></p><p><i id="amcl-dot"></i><code>AMCL</code><span id="amcl-state">等待</span></p><p><i id="footprint-dot"></i><code>footprint</code><span id="footprint-state">等待</span></p><p><i id="tf-dot"></i><code>/tf</code><span id="tf-state">等待</span></p></section>
+      <section class="panel layers"><h2>视图图层</h2><label><input id="show-map" type="checkbox" checked>栅格地图</label><label><input id="show-inflation" type="checkbox" checked>代价地图 / 膨胀层</label><label><input id="show-obstacles" type="checkbox" checked>局部障碍（含动态）</label><label><input id="show-global-plan" type="checkbox" checked>全局路径</label><label><input id="show-local-plan" type="checkbox" checked>局部轨迹</label><label><input id="show-particles" type="checkbox" checked>AMCL 粒子云</label><label><input id="show-covariance" type="checkbox" checked>定位协方差</label><label><input id="show-footprint" type="checkbox" checked>机器人 Footprint</label></section>
     </aside>
-  </main><script src="/app.js"></script>
+  </main>
+  <script src="/app.js"></script>
 </body>
 </html>

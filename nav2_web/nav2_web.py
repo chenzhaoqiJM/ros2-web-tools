@@ -16,8 +16,9 @@ from pathlib import Path
 
 import rclpy
 from action_msgs.msg import GoalStatus
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PolygonStamped, PoseStamped, PoseWithCovarianceStamped
 from nav2_msgs.action import NavigateToPose
+from nav2_msgs.msg import BehaviorTreeLog, ParticleCloud
 from nav_msgs.msg import OccupancyGrid, Path as RosPath
 from rclpy.action import ActionClient
 from rclpy.node import Node
@@ -59,8 +60,17 @@ class SharedState:
         self.map = None
         self.global_costmap = None
         self.local_costmap = None
+        self.grid_versions = {"map": 0, "global_costmap": 0, "local_costmap": 0}
         self.plan = None
         self.local_plan = None
+        self.amcl_pose = None
+        self.particles = None
+        self.footprints = {"global": None, "local": None}
+        self.bt = {"stage": "等待导航", "status": "IDLE", "recovery": None}
+        self.active_bt_nodes = {}
+        self.navigation = {"distance_remaining": None, "estimated_time_remaining": None,
+                           "navigation_time": None, "recoveries": 0, "replans": 0}
+        self.plan_signature = None
         self.goal = None
         self.status = "等待目标"
         self.goal_active = False
@@ -82,13 +92,88 @@ class SharedState:
     def update_grid(self, message, name):
         with self.condition:
             setattr(self, name, grid_record(message))
+            self.grid_versions[name] += 1
         self.notify()
 
     def update_path(self, message, name):
         with self.condition:
-            setattr(self, name, {"frame": frame_name(message.header.frame_id),
-                "points": [pose_record(pose.pose) for pose in message.poses]})
+            path = {"frame": frame_name(message.header.frame_id),
+                    "points": [pose_record(pose.pose) for pose in message.poses]}
+            setattr(self, name, path)
+            if name == "plan" and self.goal_active and path["points"]:
+                points = path["points"]
+                signature = (len(points),
+                    tuple(round(value, 2) for value in points[0]["position"][:2]),
+                    tuple(round(value, 2) for value in points[len(points) // 2]["position"][:2]),
+                    tuple(round(value, 2) for value in points[-1]["position"][:2]))
+                if self.plan_signature is not None and signature != self.plan_signature:
+                    self.navigation["replans"] += 1
+                self.plan_signature = signature
         self.notify()
+
+    def update_amcl_pose(self, message):
+        covariance = message.pose.covariance
+        with self.condition:
+            self.amcl_pose = {"frame": frame_name(message.header.frame_id),
+                **pose_record(message.pose.pose),
+                "covariance": [covariance[0], covariance[1], covariance[6], covariance[7]]}
+        self.notify()
+
+    def update_particles(self, message):
+        # Limit browser payloads while retaining the distribution shape.
+        particles = message.particles
+        stride = max(1, math.ceil(len(particles) / 1000))
+        with self.condition:
+            self.particles = {"frame": frame_name(message.header.frame_id),
+                "points": [{**pose_record(p.pose), "weight": p.weight}
+                           for p in particles[::stride]], "total": len(particles)}
+        self.notify()
+
+    def update_footprint(self, message, name):
+        with self.condition:
+            self.footprints[name] = {"frame": frame_name(message.header.frame_id),
+                "points": [[point.x, point.y, point.z] for point in message.polygon.points]}
+        self.notify()
+
+    def update_bt(self, message):
+        recovery_words = ("recovery", "spin", "backup", "back_up", "wait",
+                          "clear", "assistedteleop", "driveonheading")
+        with self.condition:
+            for event in message.event_log:
+                name, status = event.node_name, event.current_status
+                if status == "RUNNING":
+                    self.active_bt_nodes[name] = time.time()
+                    self.bt.update(stage=name, status=status)
+                    if any(word in name.lower() for word in recovery_words):
+                        self.bt["recovery"] = name
+                else:
+                    self.active_bt_nodes.pop(name, None)
+                    if self.bt["stage"] == name:
+                        self.bt["status"] = status
+                    if self.bt["recovery"] == name:
+                        self.bt["recovery"] = None
+            if self.active_bt_nodes:
+                self.bt["stage"] = max(self.active_bt_nodes, key=self.active_bt_nodes.get)
+                self.bt["status"] = "RUNNING"
+        self.notify()
+
+    def update_feedback(self, feedback):
+        duration = lambda value: value.sec + value.nanosec / 1e9
+        with self.condition:
+            self.navigation.update(
+                distance_remaining=float(feedback.distance_remaining),
+                estimated_time_remaining=duration(feedback.estimated_time_remaining),
+                navigation_time=duration(feedback.navigation_time),
+                recoveries=int(feedback.number_of_recoveries))
+        self.notify()
+
+    def reset_navigation(self):
+        with self.condition:
+            self.navigation = {"distance_remaining": None, "estimated_time_remaining": None,
+                               "navigation_time": 0.0, "recoveries": 0, "replans": 0}
+            self.plan_signature = None
+            self.active_bt_nodes.clear()
+            self.bt = {"stage": "等待行为树", "status": "IDLE", "recovery": None}
 
     def update_goal(self, message):
         with self.condition:
@@ -99,7 +184,10 @@ class SharedState:
         with self.condition:
             data = {"time": time.time(), "transforms": list(self.transforms.values()),
                     "goal": self.goal, "status": self.status, "goal_active": self.goal_active,
-                    "plan": self.plan, "local_plan": self.local_plan}
+                    "plan": self.plan, "local_plan": self.local_plan,
+                    "amcl_pose": self.amcl_pose, "particles": self.particles,
+                    "footprints": self.footprints, "bt": self.bt,
+                    "navigation": self.navigation, "grid_versions": self.grid_versions}
             return self.sequence, json.dumps(data, separators=(",", ":"), allow_nan=False)
 
     def map_snapshot(self):
@@ -111,7 +199,8 @@ class SharedState:
 
 class Nav2Node(Node):
     def __init__(self, state, map_topic, global_costmap_topic, local_costmap_topic,
-                 plan_topic, local_plan_topic, action_name):
+                 plan_topic, local_plan_topic, amcl_pose_topic, particle_topic,
+                 global_footprint_topic, local_footprint_topic, bt_log_topic, action_name):
         super().__init__("nav2_web")
         self.state = state
         reliable_static = QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=1,
@@ -129,6 +218,13 @@ class Nav2Node(Node):
                                  lambda m: state.update_grid(m, "local_costmap"), reliable_static)
         self.create_subscription(RosPath, plan_topic, lambda m: state.update_path(m, "plan"), reliable)
         self.create_subscription(RosPath, local_plan_topic, lambda m: state.update_path(m, "local_plan"), reliable)
+        self.create_subscription(PoseWithCovarianceStamped, amcl_pose_topic, state.update_amcl_pose, reliable)
+        self.create_subscription(ParticleCloud, particle_topic, state.update_particles, dynamic)
+        self.create_subscription(PolygonStamped, global_footprint_topic,
+                                 lambda m: state.update_footprint(m, "global"), reliable)
+        self.create_subscription(PolygonStamped, local_footprint_topic,
+                                 lambda m: state.update_footprint(m, "local"), reliable)
+        self.create_subscription(BehaviorTreeLog, bt_log_topic, state.update_bt, reliable)
         self.action_client = ActionClient(self, NavigateToPose, action_name)
         self.goal_handle = None
         self.get_logger().info(f"Listening to {map_topic}, {plan_topic}, {action_name}")
@@ -144,7 +240,8 @@ class Nav2Node(Node):
         goal.pose.header.stamp = self.get_clock().now().to_msg()
         goal.pose.pose.position.x, goal.pose.pose.position.y = x, y
         goal.pose.pose.orientation.z, goal.pose.pose.orientation.w = math.sin(yaw / 2), math.cos(yaw / 2)
-        future = self.action_client.send_goal_async(goal)
+        self.state.reset_navigation()
+        future = self.action_client.send_goal_async(goal, feedback_callback=self.goal_feedback)
         future.add_done_callback(self.goal_response)
         with self.state.condition:
             self.state.goal = {"frame": frame, "position": [x, y, 0.0],
@@ -152,6 +249,9 @@ class Nav2Node(Node):
             self.state.status, self.state.goal_active = "发送中", True
         self.state.notify()
         return True
+
+    def goal_feedback(self, message):
+        self.state.update_feedback(message.feedback)
 
     def goal_response(self, future):
         try:
@@ -179,6 +279,9 @@ class Nav2Node(Node):
         with self.state.condition:
             self.state.status = labels.get(status, f"导航结束 ({status})")
             self.state.goal_active = False
+            self.state.bt["stage"] = self.state.status
+            self.state.bt["status"] = "SUCCESS" if status == GoalStatus.STATUS_SUCCEEDED else "IDLE"
+            self.state.bt["recovery"] = None
         self.state.notify()
 
     def cancel_goal(self):
@@ -294,13 +397,20 @@ def main():
     parser.add_argument("--local-costmap-topic", default="/local_costmap/costmap")
     parser.add_argument("--plan-topic", default="/plan")
     parser.add_argument("--local-plan-topic", default="/local_plan")
+    parser.add_argument("--amcl-pose-topic", default="/amcl_pose")
+    parser.add_argument("--particle-topic", default="/particle_cloud")
+    parser.add_argument("--global-footprint-topic", default="/global_costmap/published_footprint")
+    parser.add_argument("--local-footprint-topic", default="/local_costmap/published_footprint")
+    parser.add_argument("--bt-log-topic", default="/behavior_tree_log")
     parser.add_argument("--action-name", default="/navigate_to_pose")
     parser.add_argument("--fixed-frame", default="map")
     args = parser.parse_args()
     rclpy.init()
     state = SharedState()
     node = Nav2Node(state, args.map_topic, args.global_costmap_topic, args.local_costmap_topic,
-                    args.plan_topic, args.local_plan_topic, args.action_name)
+                    args.plan_topic, args.local_plan_topic, args.amcl_pose_topic,
+                    args.particle_topic, args.global_footprint_topic,
+                    args.local_footprint_topic, args.bt_log_topic, args.action_name)
     Handler.state, Handler.node = state, node
     Handler.domain_id, Handler.fixed_frame = os.environ.get("ROS_DOMAIN_ID", "0"), args.fixed_frame
     server = ThreadingHTTPServer((args.host, args.port), Handler)
