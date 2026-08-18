@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ROS 2 多传感器相机</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="mark" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div><span>ROS 2 · DOMAIN {{ROS_DOMAIN_ID}}</span><h1>多传感器相机</h1></div>
+    </div>
+    <div id="connection" class="connection"><i></i><span>正在发现相机</span></div>
+  </header>
+
+  <main>
+    <aside class="source-panel">
+      <div class="aside-heading"><span>图像源</span><b id="source-count">0</b></div>
+      <nav id="kind-tabs" class="tabs" aria-label="传感器类型">
+        <button class="active" data-kind="all">全部</button>
+        <button data-kind="rgb">RGB</button>
+        <button data-kind="depth">深度</button>
+        <button data-kind="infrared">红外</button>
+      </nav>
+      <div id="source-list" class="source-list">
+        <div class="empty-source"><span class="scan-icon"></span><p>正在扫描 ROS 2 图像话题…</p></div>
+      </div>
+      <div class="discovery-note"><i></i><span>每 2 秒自动发现<br><code>sensor_msgs/Image</code><br><code>sensor_msgs/CompressedImage</code></span></div>
+    </aside>
+
+    <section class="workspace">
+      <div class="viewer" id="viewer">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="snapshot-canvas"></canvas>
+        <div id="no-video" class="no-video">
+          <span class="aperture"></span>
+          <h2>等待图像源</h2>
+          <p>启动相机发布器后，话题会自动出现在左侧</p>
+        </div>
+        <div class="viewer-top">
+          <span id="kind-badge" class="kind-badge">未选择</span>
+          <code id="active-topic">—</code>
+        </div>
+        <div class="viewer-bottom">
+          <div class="live-pill"><i></i><span>WEBRTC</span></div>
+          <div class="viewer-actions">
+            <button id="snapshot" title="保存当前帧" disabled aria-label="保存当前帧">
+              <svg viewBox="0 0 24 24"><path d="M4 7h3l1.5-2h7L17 7h3v12H4zM12 9a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/></svg>
+            </button>
+            <button id="fullscreen" title="全屏" aria-label="全屏">
+              <svg viewBox="0 0 24 24"><path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <section class="metrics" aria-label="流状态">
+        <div><span>分辨率</span><strong id="resolution">—</strong></div>
+        <div><span>接收帧率</span><strong id="fps">—</strong></div>
+        <div><span>视频码率</span><strong id="bitrate">—</strong></div>
+        <div><span>网络往返</span><strong id="latency">—</strong></div>
+        <div><span>丢包率</span><strong id="loss">—</strong></div>
+      </section>
+
+      <div class="detail-grid">
+        <section class="card stream-card">
+          <div class="card-heading"><div><span>STREAM</span><h2>传输设置</h2></div><em id="adapt-state">自动调节</em></div>
+          <label>画质策略
+            <select id="quality">
+              <option value="auto">自动（推荐）</option>
+              <option value="high">高画质 · 1080p / 30fps</option>
+              <option value="balanced">均衡 · 720p / 24fps</option>
+              <option value="low">流畅 · 360p / 12fps</option>
+            </select>
+          </label>
+          <div class="quality-row"><span>当前编码档位</span><strong id="active-quality">均衡</strong></div>
+          <p>WebRTC 根据带宽和网络拥塞实时调整编码；自动策略还会动态缩放分辨率与帧率。</p>
+        </section>
+        <section class="card info-card">
+          <div class="card-heading"><div><span>SENSOR</span><h2>图像信息</h2></div></div>
+          <dl>
+            <dt>消息类型</dt><dd id="message-type">—</dd>
+            <dt>原始编码</dt><dd id="encoding">—</dd>
+            <dt>帧计数</dt><dd id="frame-count">—</dd>
+            <dt>深度 / 灰度范围</dt><dd id="value-range">—</dd>
+          </dl>
+        </section>
+      </div>
+    </section>
+  </main>
+  <div id="toast" role="status"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
