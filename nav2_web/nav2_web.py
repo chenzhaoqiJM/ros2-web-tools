@@ -226,7 +226,7 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            payload = json.loads(self.rfile.read(length))
+            payload = json.loads(self.rfile.read(length)) if length else {}
             if path == "/api/goal":
                 x, y, yaw = (float(payload[key]) for key in ("x", "y", "yaw"))
                 frame = frame_name(str(payload.get("frame", self.fixed_frame))) or self.fixed_frame

@@ -6,7 +6,7 @@
   <title>ROS 2 Nav2 导航地图</title>
   <link rel="stylesheet" href="/style.css">
 </head>
-<body>
+<body data-fixed-frame="{{FIXED_FRAME}}">
   <header><div><span class="eyebrow">ROS 2 · DOMAIN {{ROS_DOMAIN_ID}} · FRAME {{FIXED_FRAME}}</span><h1>Nav2 导航地图</h1></div><div id="connection" class="connection"><i></i><span>正在连接</span></div></header>
   <main>
     <section class="stage"><canvas id="map" aria-label="Nav2 导航地图"></canvas><div class="tools"><button id="zoom-in" title="放大">+</button><button id="zoom-out" title="缩小">−</button><button id="fit" title="适配地图">⌖</button></div><div class="hint">左键拖动设定目标方向 · 右键取消目标</div><div class="scale"><span id="scale-bar"></span><b id="scale-label">1 m</b></div><div class="legend"><span><i class="robot"></i>机器人</span><span><i class="goal"></i>目标</span><span><i class="plan"></i>全局路径</span></div></section>
