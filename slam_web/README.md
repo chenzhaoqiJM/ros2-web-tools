@@ -8,11 +8,12 @@
 | --- | --- | --- |
 | Map | `/map` | 占用栅格地图，支持地图持续更新 |
 | LaserScan | `/scan` | 红色实时激光点云 |
-| TF / RobotModel | `/tf`、`/tf_static` | 机器人位置和朝向 |
+| TF / RobotModel | `/tf`、`/tf_static` | 机器人位置和朝向，以及 `map`、`odom`、`base_link` 坐标轴 |
 | MarkerArray | `/trajectory_node_list` | 紫色建图轨迹 |
 | Twist | `/cmd_vel` | 网页速度控制 |
 
 固定坐标系与 RViz 配置一致，使用地图消息的 frame（通常为 `map`）。
+坐标轴以地图坐标系为参考：青色为 `map`，黄色为 `odom`，绿色为 `base_link`。缺少从地图到某个坐标系的 TF 链时，该坐标轴不会显示。
 
 ## 在远程 ROS 2 主机运行
 
@@ -67,6 +68,6 @@ ros2 run tf2_ros tf2_echo map base_footprint
 - 滚轮或左上角 `+`/`−`：缩放；
 - `⌖`：适配整张地图；
 - `◎`：切换是否跟随机器人；
-- 右侧复选框：控制地图、激光、轨迹和米制网格图层。
+- 右侧复选框：控制地图、激光、轨迹、坐标系和米制网格图层。
 
 按 `Ctrl+C` 停止服务。

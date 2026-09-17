@@ -21,7 +21,7 @@
         <button id="follow" class="active" title="跟随机器人" aria-label="跟随机器人">◎</button>
       </nav>
       <div class="scale"><span id="scale-bar"></span><b id="scale-label">1 m</b></div>
-      <div class="legend"><span><i class="robot"></i>机器人</span><span><i class="laser"></i>激光</span><span><i class="trajectory"></i>轨迹</span></div>
+      <div class="legend"><span><i class="robot"></i>机器人 / base_link</span><span><i class="frame-map"></i>map</span><span><i class="frame-odom"></i>odom</span><span><i class="laser"></i>激光</span><span><i class="trajectory"></i>轨迹</span></div>
     </section>
     <aside>
       <section class="metrics">
@@ -59,6 +59,7 @@
         <label><input id="show-map" type="checkbox" checked><span>栅格地图</span></label>
         <label><input id="show-scan" type="checkbox" checked><span>实时激光点</span></label>
         <label><input id="show-trajectory" type="checkbox" checked><span>建图轨迹</span></label>
+        <label><input id="show-frames" type="checkbox" checked><span>坐标系（map / odom / base_link）</span></label>
         <label><input id="show-grid" type="checkbox"><span>米制网格</span></label>
       </section>
     </aside>
